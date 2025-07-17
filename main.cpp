@@ -38,10 +38,12 @@ int main()
         }
         std::vector<cv::Rect> faces;
         face_cascade.detectMultiScale(frame, faces, 1.1, 3, 0);
-
+        
         for (const auto& face : faces) {
             cv::rectangle(frame, face, cv::Scalar(255, 0, 0), 2);
         }
+
+        cv::cvtColor(frame, frame, cv::COLOR_RGB2GRAY);
 
         cv::imshow("Live", frame);
         if (cv::waitKey(5) >= 0)
