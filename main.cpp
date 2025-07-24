@@ -4,9 +4,13 @@
 #include <iostream>
 #include <stdio.h>
 #include <vector>
+#include <filesystem>
 
 #include "libs/Process2Gray.h"
 #include "libs/ProcessBlur.h"
+#include "libs/ISendFrame.h"
+#include "libs/SendToDisk.h"
+#include "libs/SendToWindow.h"
 
 int main(int argc, char **argv)
 {
@@ -26,6 +30,10 @@ int main(int argc, char **argv)
     std::vector<IProcessFrame*> processVec;
     processVec.push_back(new Process2Gray());
     processVec.push_back(new ProcessBlur());
+
+    std::vector<ISendFrame*> sendVec;
+    sendVec.push_back(new SendToWindow());
+    sendVec.push_back(new SendToDisk("output_frames"));
     
     int deviceID = 0;
     int apiID = cv::CAP_ANY;
@@ -37,6 +45,7 @@ int main(int argc, char **argv)
  
     std::cout << "Start grabbing" << std::endl
         << "Press any key to terminate" << std::endl;
+
     while(true) {
         cap.read(frame);
 
@@ -45,14 +54,34 @@ int main(int argc, char **argv)
             break;
         }
 
-        for (size_t i = 0; i < 2; i++)
+        /*for (size_t i = 0; i < 2; i++)
         {
             processVec[i]->processFrame(frame);
         }
         
         cv::imshow("Live", frame);
         if (cv::waitKey(5) >= 0)
+            break;*/
+        for (auto& proc : processVec) {
+            proc->processFrame(frame);
+        }
+        
+        for (auto& sender : sendVec) {
+            sender->sendFrame(frame);
+        }
+
+        if (cv::waitKey(5) >= 0)
             break;
+            
     }
+
+    for (auto& proc : processVec) {
+        delete proc;
+    }
+    
+    for (auto& sender : sendVec) {
+        delete sender;
+    }
+    
     return 0;
 }

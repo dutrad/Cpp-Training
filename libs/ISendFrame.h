@@ -5,4 +5,5 @@
 class ISendFrame {
     public:
         virtual void sendFrame(cv::Mat &frame) = 0;
+        virtual ~ISendFrame() {}
 };

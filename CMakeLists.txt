@@ -8,6 +8,8 @@ add_executable(${PROJECT_NAME}
     main.cpp
     libs/Process2Gray.cpp
     libs/ProcessBlur.cpp
+    libs/SendToDisk.cpp
+    libs/SendToWindow.cpp
 )
 
 find_package( OpenCV REQUIRED )
