@@ -6,11 +6,11 @@
 #include <vector>
 #include <filesystem>
 
-#include "libs/Process2Gray.h"
-#include "libs/ProcessBlur.h"
-#include "libs/ISendFrame.h"
-#include "libs/SendToDisk.h"
-#include "libs/SendToWindow.h"
+#include "Process2Gray.h"
+#include "ProcessBlur.h"
+#include "ISendFrame.h"
+#include "SendToDisk.h"
+#include "SendToWindow.h"
 
 int main(int argc, char **argv)
 {
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 
     std::vector<ISendFrame*> sendVec;
     sendVec.push_back(new SendToWindow());
-    sendVec.push_back(new SendToDisk("output_frames"));
+    //sendVec.push_back(new SendToDisk("output_frames"));
     
     int deviceID = 0;
     int apiID = cv::CAP_ANY;
