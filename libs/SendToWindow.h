@@ -6,7 +6,8 @@
 class SendToWindow : public ISendFrame
 {
 public:
-    void sendFrame(const cv::Mat &frame) override;
+    void sendFrame(cv::Mat &frame) override;
+
 };
 
 #endif // SENDTOWWINDOW_H
