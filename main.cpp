@@ -6,9 +6,9 @@
 #include <vector>
 #include <filesystem>
 
+#include "ProcessFaceDetect.h"
 #include "Process2Gray.h"
 #include "ProcessBlur.h"
-#include "ISendFrame.h"
 #include "SendToDisk.h"
 #include "SendToWindow.h"
 
@@ -29,7 +29,8 @@ int main(int argc, char **argv)
 
     std::vector<IProcessFrame*> processVec;
     processVec.push_back(new Process2Gray());
-    processVec.push_back(new ProcessBlur());
+    //processVec.push_back(new ProcessBlur());
+    processVec.push_back(new ProcessFaceDetect("../res/haarcascade_frontalface_default.xml"));
 
     std::vector<ISendFrame*> sendVec;
     sendVec.push_back(new SendToWindow());
