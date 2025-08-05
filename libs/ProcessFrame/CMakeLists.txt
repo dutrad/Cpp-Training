@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_library(${PROJECT_NAME} 
     Process2Gray.cpp
     ProcessBlur.cpp
+    FaceDetector.cpp
 )
 
 find_package( OpenCV REQUIRED )

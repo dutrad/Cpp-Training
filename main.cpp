@@ -11,6 +11,7 @@
 #include "ISendFrame.h"
 #include "SendToDisk.h"
 #include "SendToWindow.h"
+#include "FaceDetector.h"
 
 int main(int argc, char **argv)
 {
@@ -28,8 +29,10 @@ int main(int argc, char **argv)
     //}
 
     std::vector<IProcessFrame*> processVec;
-    processVec.push_back(new Process2Gray());
-    processVec.push_back(new ProcessBlur());
+    processVec.push_back(new FaceDetector());
+    //processVec.push_back(new Process2Gray());
+    //processVec.push_back(new ProcessBlur());
+
 
     std::vector<ISendFrame*> sendVec;
     sendVec.push_back(new SendToWindow());
