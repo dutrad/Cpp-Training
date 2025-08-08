@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <vector>
 #include <filesystem>
+#include <thread>
+#include <queue>
 
 #include "ProcessFaceDetect.h"
 #include "Process2Gray.h"
@@ -12,33 +14,131 @@
 #include "SendToDisk.h"
 #include "SendToWindow.h"
 
+std::queue<cv::Mat> toProcessQueue;
+std::queue<cv::Mat> toSaveQueue;
+
+std::mutex toProcessMutex;
+std::mutex toSaveMutex;
+std::atomic_bool finishedCapturing(false);
+std::atomic_bool finishedProcessing(false);
+
+void captureFrames(cv::VideoCapture &cap)
+{
+    cv::Mat frame;
+    while (true) {
+        cap.read(frame);
+        if (frame.empty()) {
+            finishedCapturing = true;
+            break;
+        }
+        {
+            std::lock_guard<std::mutex> lock(toProcessMutex);
+            toProcessQueue.push(frame.clone());
+        }
+        std::this_thread::yield();
+    }
+    std::cout << "Capture frames thread finished" << std::endl;
+}
+
+void processFrames(std::vector<IProcessFrame*> &processVec)
+{
+    while (true) {
+        cv::Mat frame;
+        {
+            std::lock_guard<std::mutex> lock(toProcessMutex);
+            if (toProcessQueue.empty()) {
+                continue;
+            }
+            frame = toProcessQueue.front();
+            toProcessQueue.pop();
+        }
+
+        for (auto& proc : processVec) {
+            proc->processFrame(frame);
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(toSaveMutex);
+            toSaveQueue.push(frame.clone());
+        }
+
+        if(finishedCapturing && toProcessQueue.empty()) {
+            finishedProcessing = true;
+            break;
+        }
+        std::this_thread::yield();
+    }
+    std::cout << "Process frames thread finished" << std::endl;
+}
+
+void sendFrames(std::vector<ISendFrame*> &sendVec)
+{
+    while (true) {
+        cv::Mat frame;
+        {
+            std::lock_guard<std::mutex> lock(toSaveMutex);
+            if (toSaveQueue.empty()) {
+                continue;
+            }
+            frame = toSaveQueue.front();
+            toSaveQueue.pop();
+        }
+
+        for (auto& sender : sendVec) {
+            sender->sendFrame(frame);
+        }
+        if(finishedProcessing && toSaveQueue.empty()) break;
+        std::this_thread::yield();
+    }
+    std::cout << "Save frames thread finished" << std::endl;
+}
+
+void processMultiThreads(cv::VideoCapture &cap, std::vector<IProcessFrame*> &processVec, std::vector<ISendFrame*> &sendVec)
+{
+    std::thread captureThread(captureFrames, std::ref(cap));
+    std::thread processThread(processFrames, std::ref(processVec));
+    std::thread sendThread(sendFrames, std::ref(sendVec));
+
+    captureThread.join();
+    processThread.join();
+    sendThread.join();
+}
+
+void processSingleThread(cv::VideoCapture &cap, std::vector<IProcessFrame*> &processVec, std::vector<ISendFrame*> &sendVec)
+{
+    cv::Mat frame;
+    while (true) {
+        cap.read(frame);
+        if (frame.empty()) break;
+
+        for (auto& proc : processVec) {
+            proc->processFrame(frame);
+        }
+
+        for (auto& sender : sendVec) {
+            sender->sendFrame(frame);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     cv::Mat frame;
     cv::VideoCapture cap;
 
-    //IProcessFrame *process;
-    //int processChoice = std::stoi(argv[1]);
-    //if (processChoice == 0)
-    //{
-    //    process = new Process2Gray();
-    //}
-    //else {
-    //    process = new ProcessBlur();
-    //}
 
     std::vector<IProcessFrame*> processVec;
     processVec.push_back(new Process2Gray());
     //processVec.push_back(new ProcessBlur());
-    processVec.push_back(new ProcessFaceDetect("../res/haarcascade_frontalface_default.xml"));
+    //processVec.push_back(new ProcessFaceDetect("../res/haarcascade_frontalface_default.xml"));
 
     std::vector<ISendFrame*> sendVec;
-    sendVec.push_back(new SendToWindow());
-    //sendVec.push_back(new SendToDisk("output_frames"));
+    //sendVec.push_back(new SendToWindow());
+    sendVec.push_back(new SendToDisk("output_frames"));
     
     int deviceID = 0;
     int apiID = cv::CAP_ANY;
-    cap.open(deviceID, apiID);
+    cap.open("../input_frames/frame_%05d.png", apiID);
     if (!cap.isOpened()) {
         std::cerr << "ERROR! Unable to open camera\n";
         return -1;
@@ -47,34 +147,14 @@ int main(int argc, char **argv)
     std::cout << "Start grabbing" << std::endl
         << "Press any key to terminate" << std::endl;
 
-    while(true) {
-        cap.read(frame);
+    auto now = std::chrono::system_clock::now();
 
-        if (frame.empty()) {
-            std::cerr << "ERROR! blank frame grabbed\n";
-            break;
-        }
+    //processMultiThreads(cap, processVec, sendVec);
+    processSingleThread(cap, processVec, sendVec);
 
-        /*for (size_t i = 0; i < 2; i++)
-        {
-            processVec[i]->processFrame(frame);
-        }
-        
-        cv::imshow("Live", frame);
-        if (cv::waitKey(5) >= 0)
-            break;*/
-        for (auto& proc : processVec) {
-            proc->processFrame(frame);
-        }
-        
-        for (auto& sender : sendVec) {
-            sender->sendFrame(frame);
-        }
-
-        if (cv::waitKey(5) >= 0)
-            break;
-            
-    }
+    auto end = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - now);
+    std::cout << "Processing time: " << duration.count() << " milliseconds" << std::endl;
 
     for (auto& proc : processVec) {
         delete proc;
