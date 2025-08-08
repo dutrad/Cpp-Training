@@ -9,15 +9,28 @@ FaceDetector::FaceDetector() {
 
 void FaceDetector::processFrame(cv::Mat& frame) {
     std::vector<cv::Rect> faces;
-    // Convert the frame to grayscale for better detection
-    cv::Mat grayFrame;
-    cv::cvtColor(frame, grayFrame, cv::COLOR_BGR2GRAY);
-    
-    // Detect faces in the frame
-    faceCascade.detectMultiScale(grayFrame, faces, 1.1, 3, 0, cv::Size(30, 30));
 
-    // Draw rectangles around detected faces
+    // Detectar rostos na imagem colorida
+    cv::Mat gray;
+    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    faceCascade.detectMultiScale(gray, faces, 1.1, 3, 0, cv::Size(30, 30));
+
+    // Para cada rosto detectado
     for (const auto& face : faces) {
-        cv::rectangle(frame, face, cv::Scalar(255, 0, 0), 2);
+        // Extrair a região do rosto da imagem colorida
+        cv::Mat faceROI_color = frame(face);
+
+        // Extrair a mesma região da imagem em tons de cinza
+        cv::Mat faceROI_gray = gray(face);
+
+        // Converter a região cinza para BGR (3 canais) para poder copiar de volta
+        cv::Mat faceROI_gray_bgr;
+        cv::cvtColor(faceROI_gray, faceROI_gray_bgr, cv::COLOR_GRAY2BGR);
+
+        // Substituir a região colorida pela versão em tons de cinza
+        faceROI_gray_bgr.copyTo(faceROI_color);
+
+        // Opcional: desenhar um retângulo ao redor do rosto
+        cv::rectangle(frame, face, cv::Scalar(0, 255, 0), 2);
     }
 }
